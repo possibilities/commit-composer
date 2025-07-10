@@ -1,1 +1,1 @@
-# Commander.js Template
+# Commit Composer

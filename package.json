@@ -1,12 +1,12 @@
 {
-  "name": "commanderjs-template",
+  "name": "commit-composer",
   "version": "0.1.0",
   "author": "Mike Bannister <notimpossiblemike@gmail.com>",
   "license": "MIT",
-  "description": "CommanderJS Template",
+  "description": "Commit Composer",
   "type": "module",
   "bin": {
-    "commanderjs-template": "./dist/cli.js"
+    "commit-composer": "./dist/cli.js"
   },
   "scripts": {
     "build": "tsup",
