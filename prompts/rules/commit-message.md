@@ -1,0 +1,3 @@
+- When writing a commit message summarize the changes
+  - Explain _what_ changed and what the effects on users will be
+  - **Never** try to explain _why_ the changes were made unless it is explicit in the context

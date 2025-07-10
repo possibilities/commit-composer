@@ -1,0 +1,7 @@
+- All changes are in the working tree and all info needed to create a commit message are in the conversation
+- Analyze the changes and respond with ONLY the commit message text
+  - No explanations
+  - No additional commentary
+  - Only the commit message itself should be returned
+  - Avoid using the word "commit" in the message
+- If you need to save the commit message to a text file, use the /tmp directory (e.g., /tmp/commit_message.txt).

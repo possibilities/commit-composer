@@ -1,0 +1,14 @@
+- Follow these instructions step-by-step:
+  - Perform a safety and security check of the current repo changes
+  - Look for the following unsafe scenarios:
+    - Suspicious files or changes
+    - Any credentials are present
+    - Files are committed that should be ignored
+    - Binaries are committed
+    - Secrets accidentally embedded in code (e.g., API keys, tokens)
+    - Executable scripts without shebang or unexpected permissions
+    - Unexpected changes to configuration or dependency files (e.g., package-lock.json, requirements.txt)
+  - When complete save file with the contents of the security check
+    - If no unsafe scenarios are present, save the summary as ./SUCCEEDED-SECURITY-CHECK.txt
+    - If unsafe scenarios are present, save the summary as ./FAILED-SECURITY-CHECK.txt
+  - If you need to save the commit message to a text file, use the /tmp directory (e.g., /tmp/commit_message.txt)
