@@ -101,7 +101,5 @@ export async function sendNotification(
         `notify-send "${title}" "${message}" --urgency=critical --expire-time=12000`,
       )
     }
-  } catch {
-    // Ignore all notification errors
-  }
+  } catch {}
 }

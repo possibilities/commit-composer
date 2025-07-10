@@ -19,9 +19,7 @@ export function isInWorktree(): boolean {
         const content = readFileSync(gitPath, 'utf8')
         return content.includes('gitdir:')
       }
-    } catch {
-      // Ignore errors
-    }
+    } catch {}
   }
   return false
 }
@@ -90,9 +88,7 @@ export async function showCommitSummary(): Promise<void> {
   try {
     const { stdout } = await execute('git --no-pager show --stat')
     console.log(stdout)
-  } catch (error) {
-    // Ignore errors when showing commit summary
-  }
+  } catch (error) {}
 }
 
 export async function getCurrentBranch(): Promise<string> {

@@ -36,12 +36,10 @@ export async function runClaude(
     process.cwd(),
   ]
 
-  // Add allowed tools
   ALLOWED_TOOLS.forEach(tool => {
     args.push('--allowedTools', tool)
   })
 
-  // Add disallowed tools
   DISALLOWED_TOOLS.forEach(tool => {
     args.push('--disallowedTools', tool)
   })
@@ -55,7 +53,6 @@ export async function runClaude(
       stdio: ['pipe', 'pipe', 'pipe'],
     })
 
-    // Write prompt to stdin
     child.stdin.write(prompt)
     child.stdin.end()
 
@@ -109,9 +106,7 @@ export async function runClaude(
       ) {
         messageContent = parsed.result
       }
-    } catch {
-      // Ignore parsing errors
-    }
+    } catch {}
   }
 
   if (validateResult) {
@@ -127,7 +122,6 @@ export async function runClaude(
     }
   }
 
-  // Cleanup any files created except security check files
   await cleanupNewFiles(beforeFiles, [
     'SUCCEEDED-SECURITY-CHECK.txt',
     'FAILED-SECURITY-CHECK.txt',

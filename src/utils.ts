@@ -15,9 +15,7 @@ export function cleanupFile(filePath: string): void {
   if (existsSync(filePath)) {
     try {
       unlinkSync(filePath)
-    } catch {
-      // Ignore cleanup errors
-    }
+    } catch {}
   }
 }
 

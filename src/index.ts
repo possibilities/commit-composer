@@ -24,12 +24,10 @@ import { generateCommitMessage } from './commit-message.js'
 async function commitComposer(options: CommitComposerOptions) {
   const projectName = getProjectName()
 
-  // Setup cleanup handler
   process.on('exit', () => {
     cleanupFile(SECURITY_CHECK_SUCCESS_FILE)
   })
 
-  // Setup error handler
   process.on('uncaughtException', async error => {
     const message = error.message || 'Unknown error'
     console.error(`Error: ${message}`)
@@ -41,18 +39,14 @@ async function commitComposer(options: CommitComposerOptions) {
   })
 
   try {
-    // Initial cleanup
     cleanupFile(SECURITY_CHECK_SUCCESS_FILE)
 
-    // Check requirements
     await checkRequiredExecutables()
     verifyClaudeExecutable()
     await ensureGitRepository()
 
-    // Format and lint code
     await formatAndLintCode()
 
-    // Stage changes
     const hasChanges = await stageAllChanges()
 
     if (!hasChanges) {
@@ -71,10 +65,8 @@ async function commitComposer(options: CommitComposerOptions) {
       return
     }
 
-    // Run tests
     await runTests()
 
-    // Security check
     if (options.dangerouslySkipSecurityCheck) {
       console.error(
         '⚠️  WARNING: Security check is being skipped! (--dangerously-skip-security-check flag is set)',
@@ -86,13 +78,10 @@ async function commitComposer(options: CommitComposerOptions) {
       await runSecurityCheck()
     }
 
-    // Generate commit message
     const commitMessage = await generateCommitMessage()
 
-    // Create commit
     await createCommit(commitMessage)
 
-    // Push to remote
     if (isInWorktree()) {
       console.error('Skipping push - detected git worktree')
       await sendNotification(
@@ -107,12 +96,9 @@ async function commitComposer(options: CommitComposerOptions) {
       )
     }
 
-    // Show commit summary
     try {
       await showCommitSummary()
-    } catch (error) {
-      // Ignore errors when showing commit summary
-    }
+    } catch (error) {}
   } catch (error: any) {
     const message = error.message || 'Unknown error'
     console.error('Error details:', error)

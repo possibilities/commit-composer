@@ -12,13 +12,11 @@ export async function generateCommitMessage(): Promise<string> {
     errorExit('No commit message was generated!')
   }
 
-  // Remove "Initial commit: " prefix if present
   let cleanedMessage = message
   if (message.startsWith('Initial commit: ')) {
     cleanedMessage = message.substring('Initial commit: '.length)
   }
 
-  // Check if message contains the word "commit"
   if (cleanedMessage.toLowerCase().includes('commit')) {
     errorExit(
       `Commit message cannot contain the word 'commit'. Generated message: ${message}`,
