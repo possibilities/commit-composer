@@ -1,15 +1,145 @@
 import { Command } from 'commander'
 import packageJson from '../package.json' assert { type: 'json' }
+import { CommitComposerOptions, SECURITY_CHECK_SUCCESS_FILE } from './config.js'
+import {
+  checkRequiredExecutables,
+  cleanupFile,
+  errorExit,
+  getProjectName,
+} from './utils.js'
+import { sendNotification } from './process.js'
+import {
+  ensureGitRepository,
+  stageAllChanges,
+  createCommit,
+  showCommitSummary,
+  setupRemoteAndPush,
+  isInWorktree,
+} from './git.js'
+import { verifyClaudeExecutable } from './claude.js'
+import { runSecurityCheck } from './security.js'
+import { formatAndLintCode, runTests } from './package-scripts.js'
+import { generateCommitMessage } from './commit-message.js'
+
+async function commitComposer(options: CommitComposerOptions) {
+  const projectName = getProjectName()
+
+  // Setup cleanup handler
+  process.on('exit', () => {
+    cleanupFile(SECURITY_CHECK_SUCCESS_FILE)
+  })
+
+  // Setup error handler
+  process.on('uncaughtException', async error => {
+    const message = error.message || 'Unknown error'
+    console.error(`Error: ${message}`)
+    await sendNotification(
+      '❌ Error: Commit Not Created',
+      `Project: ${projectName}\n${message}`,
+    )
+    process.exit(1)
+  })
+
+  try {
+    // Initial cleanup
+    cleanupFile(SECURITY_CHECK_SUCCESS_FILE)
+
+    // Check requirements
+    await checkRequiredExecutables()
+    verifyClaudeExecutable()
+    await ensureGitRepository()
+
+    // Format and lint code
+    await formatAndLintCode()
+
+    // Stage changes
+    const hasChanges = await stageAllChanges()
+
+    if (!hasChanges) {
+      console.error(
+        'No changes to commit. Ensuring repository is pushed to git repo...',
+      )
+      if (isInWorktree()) {
+        console.error('Skipping sync - detected git worktree')
+      } else {
+        await setupRemoteAndPush()
+        await sendNotification(
+          '📋 Repository Synced',
+          `Project: ${projectName}\nRepository synced with git repo (no new changes)`,
+        )
+      }
+      return
+    }
+
+    // Run tests
+    await runTests()
+
+    // Security check
+    if (options.dangerouslySkipSecurityCheck) {
+      console.error(
+        '⚠️  WARNING: Security check is being skipped! (--dangerously-skip-security-check flag is set)',
+      )
+      console.error(
+        "⚠️  This is potentially dangerous - ensure you've reviewed all changes manually!",
+      )
+    } else {
+      await runSecurityCheck()
+    }
+
+    // Generate commit message
+    const commitMessage = await generateCommitMessage()
+
+    // Create commit
+    await createCommit(commitMessage)
+
+    // Push to remote
+    if (isInWorktree()) {
+      console.error('Skipping push - detected git worktree')
+      await sendNotification(
+        '✅ Commit Created (Worktree)',
+        `Project: ${projectName}\n${commitMessage.split('\n')[0]}`,
+      )
+    } else {
+      await setupRemoteAndPush()
+      await sendNotification(
+        '✅ Commit Created',
+        `Project: ${projectName}\n${commitMessage.split('\n')[0]}`,
+      )
+    }
+
+    // Show commit summary
+    try {
+      await showCommitSummary()
+    } catch (error) {
+      // Ignore errors when showing commit summary
+    }
+  } catch (error: any) {
+    const message = error.message || 'Unknown error'
+    console.error('Error details:', error)
+    await sendNotification(
+      '❌ Error: Commit Not Created',
+      `Project: ${projectName}\n${message}`,
+    )
+    errorExit(message)
+  }
+}
 
 async function main() {
   const program = new Command()
 
   program
     .name('commit-composer')
-    .description('Commit Composer CLI')
+    .description('Automatically create commits with AI-generated messages')
     .version(packageJson.version)
-    .action(() => {
-      console.log('hello world')
+    .option(
+      '--dangerously-skip-security-check',
+      'Skip security check (use with caution!)',
+    )
+    .action(async options => {
+      await commitComposer({
+        dangerouslySkipSecurityCheck:
+          options.dangerouslySkipSecurityCheck || false,
+      })
     })
 
   try {
