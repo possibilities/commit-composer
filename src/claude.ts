@@ -1,8 +1,43 @@
 import { existsSync } from 'fs'
 import { spawn } from 'child_process'
-import { ALLOWED_TOOLS, CLAUDE_EXECUTABLE, DISALLOWED_TOOLS } from './config.js'
+import { dirname, join } from 'path'
+import { fileURLToPath } from 'url'
+import { CLAUDE_EXECUTABLE } from './config.js'
 import { errorExit, cleanupFile } from './utils.js'
 import { getUntrackedFiles } from './git.js'
+
+const disallowedTools = [
+  'Read',
+  'Bash',
+  'Task',
+  'Glob',
+  'Grep',
+  'LS',
+  'Edit',
+  'MultiEdit',
+  'NotebookRead',
+  'NotebookEdit',
+  'WebFetch',
+  'TodoRead',
+  'TodoWrite',
+  'WebSearch',
+]
+
+const claudeArgs = [
+  '--print',
+  '--verbose',
+  '--output-format',
+  'stream-json',
+  '--permission-mode',
+  'default',
+  '--allowedTools',
+  'Write',
+  ...disallowedTools.flatMap(tool => ['--disallowedTools', tool]),
+  '--add-dir',
+  '/tmp',
+  '--model',
+  'sonnet',
+]
 
 interface ClaudeResponse {
   type: string
@@ -10,63 +45,64 @@ interface ClaudeResponse {
   result?: string
 }
 
-export async function runClaude(
-  prompt: string,
+export async function runContextComposerWithClaude(
+  promptFile: string,
   validateResult: boolean = false,
   captureFileContent: boolean = false,
+  verboseClaudeOutput: boolean = false,
+  verbosePromptOutput: boolean = false,
 ): Promise<string> {
   const beforeFiles = await getUntrackedFiles()
 
-  if (!captureFileContent && process.env.VERBOSE_CLAUDE_OUTPUT === 'true') {
-    console.error('-----')
-    console.error(prompt)
-    console.error('-----')
-  }
+  const promptPath = await resolvePromptPath(promptFile)
 
-  const args = [
-    '--print',
-    '--verbose',
-    '--output-format',
-    'stream-json',
-    '--model',
-    'sonnet',
-    '--add-dir',
-    '/tmp',
-    '--add-dir',
-    process.cwd(),
+  const contextComposerArgs = [
+    'context-composer',
+    promptPath,
+    '--invoke-commands',
+    '--strip-frontmatter',
   ]
-
-  ALLOWED_TOOLS.forEach(tool => {
-    args.push('--allowedTools', tool)
-  })
-
-  DISALLOWED_TOOLS.forEach(tool => {
-    args.push('--disallowedTools', tool)
-  })
 
   let lastLine = ''
   let messageContent = ''
   const outputLines: string[] = []
 
   const exitCode = await new Promise<number>((resolve, reject) => {
-    const child = spawn(CLAUDE_EXECUTABLE, args, {
+    const contextComposer = spawn('npx', contextComposerArgs, {
       stdio: ['pipe', 'pipe', 'pipe'],
     })
 
-    child.stdin.write(prompt)
-    child.stdin.end()
+    const claude = spawn(CLAUDE_EXECUTABLE, claudeArgs, {
+      stdio: ['pipe', 'pipe', 'pipe'],
+    })
 
-    child.stdout.on('data', data => {
+    contextComposer.stdout.on('data', data => {
+      if (verbosePromptOutput) {
+        const output = data.toString()
+        console.error('--------- CONTEXT-COMPOSER OUTPUT START ---------')
+        console.error(output)
+        console.error('--------- CONTEXT-COMPOSER OUTPUT END ---------')
+      }
+
+      claude.stdin.write(data)
+    })
+
+    contextComposer.stdout.on('end', () => {
+      claude.stdin.end()
+    })
+
+    contextComposer.stderr.on('data', data => {
+      process.stderr.write(`context-composer: ${data}`)
+    })
+
+    claude.stdout.on('data', data => {
       const lines = data
         .toString()
         .split('\n')
         .filter((line: string) => line.trim())
       lines.forEach((line: string) => {
         outputLines.push(line)
-        if (
-          !captureFileContent &&
-          process.env.VERBOSE_CLAUDE_OUTPUT === 'true'
-        ) {
+        if (!captureFileContent && verboseClaudeOutput) {
           try {
             const parsed = JSON.parse(line)
             console.error(JSON.stringify(parsed, null, 2))
@@ -78,22 +114,26 @@ export async function runClaude(
       })
     })
 
-    child.stderr.on('data', data => {
+    claude.stderr.on('data', data => {
       process.stderr.write(data)
     })
 
-    child.on('close', code => {
-      resolve(code || 0)
+    contextComposer.on('error', err => {
+      reject(err)
     })
 
-    child.on('error', err => {
+    claude.on('error', err => {
       reject(err)
+    })
+
+    claude.on('close', code => {
+      resolve(code || 0)
     })
   })
 
   if (exitCode !== 0) {
     await cleanupNewFiles(beforeFiles)
-    errorExit(`Claude command failed with exit code ${exitCode}`)
+    await errorExit(`Claude command failed with exit code ${exitCode}`)
   }
 
   if (captureFileContent) {
@@ -114,123 +154,11 @@ export async function runClaude(
       const parsed: ClaudeResponse = JSON.parse(lastLine)
       if (parsed.type !== 'result' || parsed.subtype !== 'success') {
         await cleanupNewFiles(beforeFiles)
-        errorExit('Claude returned an error result')
+        await errorExit('Claude returned an error result')
       }
     } catch {
       await cleanupNewFiles(beforeFiles)
-      errorExit('Invalid response format from Claude')
-    }
-  }
-
-  await cleanupNewFiles(beforeFiles, [
-    'SUCCEEDED-SECURITY-CHECK.txt',
-    'FAILED-SECURITY-CHECK.txt',
-  ])
-
-  return messageContent
-}
-
-export async function runClaudeCommand(
-  command: string,
-  validateResult: boolean = false,
-  captureFileContent: boolean = false,
-): Promise<string> {
-  const beforeFiles = await getUntrackedFiles()
-
-  const args = [
-    command,
-    '--print',
-    '--verbose',
-    '--output-format',
-    'stream-json',
-    '--model',
-    'sonnet',
-    '--add-dir',
-    '/tmp',
-    '--add-dir',
-    process.cwd(),
-  ]
-
-  ALLOWED_TOOLS.forEach(tool => {
-    args.push('--allowedTools', tool)
-  })
-
-  DISALLOWED_TOOLS.forEach(tool => {
-    args.push('--disallowedTools', tool)
-  })
-
-  let lastLine = ''
-  let messageContent = ''
-  const outputLines: string[] = []
-
-  const exitCode = await new Promise<number>((resolve, reject) => {
-    const child = spawn(CLAUDE_EXECUTABLE, args, {
-      stdio: ['inherit', 'pipe', 'pipe'],
-    })
-
-    child.stdout.on('data', data => {
-      const lines = data
-        .toString()
-        .split('\n')
-        .filter((line: string) => line.trim())
-      lines.forEach((line: string) => {
-        outputLines.push(line)
-        if (
-          !captureFileContent &&
-          process.env.VERBOSE_CLAUDE_OUTPUT === 'true'
-        ) {
-          try {
-            const parsed = JSON.parse(line)
-            console.error(JSON.stringify(parsed, null, 2))
-          } catch {
-            console.error(line)
-          }
-        }
-        lastLine = line
-      })
-    })
-
-    child.stderr.on('data', data => {
-      process.stderr.write(data)
-    })
-
-    child.on('close', code => {
-      resolve(code || 0)
-    })
-
-    child.on('error', err => {
-      reject(err)
-    })
-  })
-
-  if (exitCode !== 0) {
-    await cleanupNewFiles(beforeFiles)
-    errorExit(`Claude command failed with exit code ${exitCode}`)
-  }
-
-  if (captureFileContent) {
-    try {
-      const parsed: ClaudeResponse = JSON.parse(lastLine)
-      if (
-        parsed.type === 'result' &&
-        parsed.subtype === 'success' &&
-        parsed.result
-      ) {
-        messageContent = parsed.result
-      }
-    } catch {}
-  }
-
-  if (validateResult) {
-    try {
-      const parsed: ClaudeResponse = JSON.parse(lastLine)
-      if (parsed.type !== 'result' || parsed.subtype !== 'success') {
-        await cleanupNewFiles(beforeFiles)
-        errorExit('Claude returned an error result')
-      }
-    } catch {
-      await cleanupNewFiles(beforeFiles)
-      errorExit('Invalid response format from Claude')
+      await errorExit('Invalid response format from Claude')
     }
   }
 
@@ -256,9 +184,33 @@ async function cleanupNewFiles(
   }
 }
 
-export function verifyClaudeExecutable(): void {
+async function resolvePromptPath(promptFile: string): Promise<string> {
+  const currentModuleDirectory = dirname(fileURLToPath(import.meta.url))
+
+  const developmentPath = join(
+    currentModuleDirectory,
+    '..',
+    'prompts',
+    promptFile,
+  )
+  if (existsSync(developmentPath)) {
+    return developmentPath
+  }
+
+  const productionPath = join(currentModuleDirectory, 'prompts', promptFile)
+  if (existsSync(productionPath)) {
+    return productionPath
+  }
+
+  await errorExit(
+    `Prompt file not found: ${promptFile} (tried ${developmentPath} and ${productionPath})`,
+  )
+  throw new Error('Unreachable')
+}
+
+export async function verifyClaudeExecutable(): Promise<void> {
   if (!existsSync(CLAUDE_EXECUTABLE)) {
-    errorExit(
+    await errorExit(
       `Claude CLI not found at ${CLAUDE_EXECUTABLE}. Please ensure Claude CLI is installed.`,
     )
   }

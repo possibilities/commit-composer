@@ -1,5 +1,6 @@
 ---
 description: Commit Creator - Commit message
+allowed-tools: Bash(git:*), Bash(tree:*), Write
 ---
 
 @@changes/common.md

@@ -1,13 +1,23 @@
 import { existsSync, unlinkSync } from 'fs'
 import { basename } from 'path'
-import { executeWithExitCode } from './process.js'
+import { executeWithExitCode, sendNotification } from './process.js'
 
 export function getProjectName(): string {
   return basename(process.cwd())
 }
 
-export function errorExit(message: string): never {
+export async function errorExit(
+  message: string,
+  skipNotification: boolean = false,
+): Promise<never> {
   console.error(message)
+  if (!skipNotification) {
+    const projectName = getProjectName()
+    await sendNotification(
+      '❌ Error: Commit Not Created',
+      `Project: ${projectName}\n${message}`,
+    )
+  }
   process.exit(1)
 }
 
@@ -35,7 +45,7 @@ export async function checkRequiredExecutables(): Promise<void> {
   if (missing.length > 0) {
     console.error('Error: Required executables are missing:')
     missing.forEach(msg => console.error(msg))
-    errorExit(
+    await errorExit(
       '\nPlease install the missing executables before running this script.',
     )
   }

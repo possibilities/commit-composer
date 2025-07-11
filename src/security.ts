@@ -1,15 +1,24 @@
 import { existsSync } from 'fs'
-import { runClaudeCommand } from './claude.js'
+import { runContextComposerWithClaude } from './claude.js'
 import {
   SECURITY_CHECK_SUCCESS_FILE,
   SECURITY_CHECK_FAILURE_FILE,
 } from './config.js'
 import { cleanupFile, errorExit } from './utils.js'
 
-export async function runSecurityCheck(): Promise<void> {
+export async function runSecurityCheck(
+  verboseClaudeOutput: boolean = false,
+  verbosePromptOutput: boolean = false,
+): Promise<void> {
   console.error('Running security check...')
 
-  await runClaudeCommand('/commit-composer/safety-check', true)
+  await runContextComposerWithClaude(
+    'safety-check.md',
+    true,
+    false,
+    verboseClaudeOutput,
+    verbosePromptOutput,
+  )
 
   if (existsSync(SECURITY_CHECK_FAILURE_FILE)) {
     console.error('Error: Security check failed!')
@@ -20,11 +29,11 @@ export async function runSecurityCheck(): Promise<void> {
     console.error(content)
 
     cleanupFile(SECURITY_CHECK_FAILURE_FILE)
-    errorExit('Security check failed! Check the security issues above.')
+    await errorExit('Security check failed! Check the security issues above.')
   }
 
   if (!existsSync(SECURITY_CHECK_SUCCESS_FILE)) {
-    errorExit(
+    await errorExit(
       'Security check did not complete successfully! Missing ./SUCCEEDED-SECURITY-CHECK.txt file',
     )
   }

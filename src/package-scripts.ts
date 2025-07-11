@@ -33,7 +33,7 @@ export async function formatAndLintCode(): Promise<void> {
     console.error('Formatting with pnpm...')
     const { exitCode } = await executeWithExitCode('pnpm run format')
     if (exitCode !== 0) {
-      errorExit('Code formatting failed')
+      await errorExit('Code formatting failed')
     }
   } else {
     console.error('No format script found in package.json')
@@ -43,7 +43,7 @@ export async function formatAndLintCode(): Promise<void> {
     console.error('Linting with pnpm...')
     const { exitCode } = await executeWithExitCode('pnpm run lint')
     if (exitCode !== 0) {
-      errorExit('Code linting failed')
+      await errorExit('Code linting failed')
     }
   } else {
     console.error('No lint script found in package.json')
@@ -53,7 +53,7 @@ export async function formatAndLintCode(): Promise<void> {
     console.error('Type checking with pnpm...')
     const { exitCode } = await executeWithExitCode('pnpm run typecheck')
     if (exitCode !== 0) {
-      errorExit('Type checking failed')
+      await errorExit('Type checking failed')
     }
   } else {
     console.error('No typecheck script found in package.json')
@@ -71,7 +71,7 @@ export async function runTests(): Promise<void> {
     console.error('Running tests with pnpm test...')
     const { exitCode } = await executeWithExitCode('pnpm run test')
     if (exitCode !== 0) {
-      errorExit('Tests failed')
+      await errorExit('Tests failed')
     }
   } else {
     console.error('No test script found in package.json')

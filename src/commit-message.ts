@@ -1,17 +1,22 @@
-import { runClaudeCommand } from './claude.js'
+import { runContextComposerWithClaude } from './claude.js'
 import { errorExit } from './utils.js'
 
-export async function generateCommitMessage(): Promise<string> {
+export async function generateCommitMessage(
+  verboseClaudeOutput: boolean = false,
+  verbosePromptOutput: boolean = false,
+): Promise<string> {
   console.error('Generating commit message...')
 
-  const message = await runClaudeCommand(
-    '/commit-composer/commit-message',
+  const message = await runContextComposerWithClaude(
+    'commit-message.md',
     true,
     true,
+    verboseClaudeOutput,
+    verbosePromptOutput,
   )
 
   if (!message) {
-    errorExit('No commit message was generated!')
+    await errorExit('No commit message was generated!')
   }
 
   let cleanedMessage = message
@@ -20,7 +25,7 @@ export async function generateCommitMessage(): Promise<string> {
   }
 
   if (cleanedMessage.toLowerCase().includes('commit')) {
-    errorExit(
+    await errorExit(
       `Commit message cannot contain the word 'commit'. Generated message: ${message}`,
     )
   }

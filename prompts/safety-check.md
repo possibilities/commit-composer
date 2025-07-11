@@ -1,5 +1,6 @@
 ---
 description: Commit Creator - Safety Check
+allowed-tools: Bash(git:*), Bash(tree:*), Write
 ---
 
 @@changes/common.md

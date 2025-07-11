@@ -42,7 +42,7 @@ async function commitComposer(options: CommitComposerOptions) {
     cleanupFile(SECURITY_CHECK_SUCCESS_FILE)
 
     await checkRequiredExecutables()
-    verifyClaudeExecutable()
+    await verifyClaudeExecutable()
     await ensureGitRepository()
 
     await formatAndLintCode()
@@ -75,10 +75,16 @@ async function commitComposer(options: CommitComposerOptions) {
         "⚠️  This is potentially dangerous - ensure you've reviewed all changes manually!",
       )
     } else {
-      await runSecurityCheck()
+      await runSecurityCheck(
+        options.verboseClaudeOutput,
+        options.verbosePromptOutput,
+      )
     }
 
-    const commitMessage = await generateCommitMessage()
+    const commitMessage = await generateCommitMessage(
+      options.verboseClaudeOutput,
+      options.verbosePromptOutput,
+    )
 
     await createCommit(commitMessage)
 
@@ -106,7 +112,7 @@ async function commitComposer(options: CommitComposerOptions) {
       '❌ Error: Commit Not Created',
       `Project: ${projectName}\n${message}`,
     )
-    errorExit(message)
+    await errorExit(message, true)
   }
 }
 
@@ -121,10 +127,17 @@ async function main() {
       '--dangerously-skip-security-check',
       'Skip security check (use with caution!)',
     )
+    .option(
+      '--verbose-claude-output',
+      'Show verbose Claude output (JSON stream)',
+    )
+    .option('--verbose-prompt-output', 'Show the full prompt sent to Claude')
     .action(async options => {
       await commitComposer({
         dangerouslySkipSecurityCheck:
           options.dangerouslySkipSecurityCheck || false,
+        verboseClaudeOutput: options.verboseClaudeOutput || false,
+        verbosePromptOutput: options.verbosePromptOutput || false,
       })
     })
 

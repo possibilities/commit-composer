@@ -6,7 +6,7 @@ import { errorExit } from './utils.js'
 export async function ensureGitRepository(): Promise<void> {
   const { exitCode } = await executeWithExitCode('git rev-parse --git-dir')
   if (exitCode !== 0) {
-    errorExit('Not in a git repository')
+    await errorExit('Not in a git repository')
   }
 }
 
@@ -78,7 +78,7 @@ export async function createCommit(message: string): Promise<void> {
     `git commit -m "${message.replace(/"/g, '\\"')}"`,
   )
   if (exitCode !== 0) {
-    errorExit('Failed to create commit!')
+    await errorExit('Failed to create commit!')
   }
   console.error('Commit created successfully!')
   console.error('')
@@ -108,7 +108,7 @@ export async function pushToRemote(): Promise<void> {
     `git push -u origin "${currentBranch}"`,
   )
   if (exitCode !== 0) {
-    errorExit(
+    await errorExit(
       'Failed to push to origin.\nCommit was created successfully but not pushed.',
     )
   }
@@ -136,7 +136,7 @@ export async function setupRemoteAndPush(): Promise<void> {
 
   const { exitCode: ghAuth } = await executeWithExitCode('gh auth status')
   if (ghAuth !== 0) {
-    errorExit(
+    await errorExit(
       "GitHub CLI is not authenticated. Please run 'gh auth login' first.\nCommit was created successfully but not pushed.",
     )
   }
@@ -157,7 +157,7 @@ export async function setupRemoteAndPush(): Promise<void> {
 
   const { stdout: githubUser } = await execute('gh api user --jq .login')
   if (!githubUser) {
-    errorExit(
+    await errorExit(
       'Failed to determine GitHub username.\nCommit was created successfully but not pushed.',
     )
   }
@@ -187,7 +187,7 @@ export async function setupRemoteAndPush(): Promise<void> {
     return
   }
 
-  errorExit(
+  await errorExit(
     'Failed to push to repository. The repository might not exist or you might not have access.\nCommit was created successfully but not pushed.',
   )
 }

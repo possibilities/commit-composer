@@ -13,9 +13,7 @@
     "build:watch": "nodemon --watch src/ --ext ts --exec tsup",
     "format": "prettier --write \"**/*.{js,mjs,jsx,ts,tsx,json,md,mdx,css,yml,yaml}\"",
     "typecheck": "tsc --noEmit",
-    "typecheck:watch": "tsc --noEmit --watch",
-    "export-prompts": "context-composer export --force --commands-path ~/.claude/commands/commit-composer/ prompts/commit-message.md prompts/safety-check.md",
-    "export-prompts:watch": "nodemon --watch prompts/ --ext md --exec npm run export-prompts"
+    "typecheck:watch": "tsc --noEmit --watch"
   },
   "dependencies": {
     "commander": "^12.0.0",
@@ -30,5 +28,10 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "pnpm": {
+    "overrides": {
+      "context-composer": "file:../context-composer-cli"
+    }
   }
 }

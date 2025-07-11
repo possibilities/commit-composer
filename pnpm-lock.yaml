@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: false
   excludeLinksFromLockfile: false
 
+overrides:
+  context-composer: file:../context-composer-cli
+
 importers:
   .:
     dependencies:
@@ -11,8 +14,8 @@ importers:
         specifier: ^12.0.0
         version: 12.1.0
       context-composer:
-        specifier: latest
-        version: 0.1.6
+        specifier: file:../context-composer-cli
+        version: file:../context-composer-cli
     devDependencies:
       '@types/node':
         specifier: ^20.0.0
@@ -665,11 +668,8 @@ packages:
       }
     engines: { node: ^14.18.0 || >=16.10.0 }
 
-  context-composer@0.1.6:
-    resolution:
-      {
-        integrity: sha512-U3vqjaPIBAFYDQHqCt2V7JaXYjlcZMAPE4ooyLpt+OxXQyRv82Of6F2LsR+M2imDj9mIeXqxD64GGhQLS3eblg==,
-      }
+  context-composer@file:../context-composer-cli:
+    resolution: { directory: ../context-composer-cli, type: directory }
     engines: { node: '>=18' }
     hasBin: true
 
@@ -1779,7 +1779,7 @@ snapshots:
 
   consola@3.4.2: {}
 
-  context-composer@0.1.6:
+  context-composer@file:../context-composer-cli:
     dependencies:
       bash-parser: 0.5.0
       commander: 12.1.0
