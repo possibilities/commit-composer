@@ -20,10 +20,12 @@
   },
   "dependencies": {
     "commander": "^12.0.0",
-    "context-composer": "latest"
+    "context-composer": "latest",
+    "prompts": "^2.4.2"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "@types/prompts": "^2.4.9",
     "nodemon": "^3.1.10",
     "prettier": "^3.5.3",
     "tsup": "^8.0.0",
