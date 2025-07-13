@@ -47,7 +47,7 @@ check_dependencies() {
         fi
     done
     
-    local claude_executable="${CLAUDE_EXECUTABLE:-$HOME/.claude/local/claude}"
+    local claude_executable="claude"
     if [[ ! -x "$claude_executable" ]]; then
         missing+=("claude (expected at $claude_executable)")
     fi

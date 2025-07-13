@@ -1,5 +1,5 @@
 import { existsSync } from 'fs'
-import { spawn } from 'child_process'
+import { spawn, execSync } from 'child_process'
 import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
 import { CLAUDE_EXECUTABLE } from './config.js'
@@ -209,9 +209,15 @@ async function resolvePromptPath(promptFile: string): Promise<string> {
 }
 
 export async function verifyClaudeExecutable(): Promise<void> {
-  if (!existsSync(CLAUDE_EXECUTABLE)) {
-    await errorExit(
-      `Claude CLI not found at ${CLAUDE_EXECUTABLE}. Please ensure Claude CLI is installed.`,
-    )
+  try {
+    execSync('which claude', { stdio: 'ignore' })
+  } catch {
+    try {
+      execSync('command -v claude', { stdio: 'ignore' })
+    } catch {
+      await errorExit(
+        'Claude CLI not found in PATH. Please ensure Claude CLI is installed and available in your PATH.',
+      )
+    }
   }
 }
