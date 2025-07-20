@@ -7,6 +7,7 @@ import {
 import { cleanupFile, errorExit } from './utils.js'
 
 export async function runSecurityCheck(
+  claudePath: string,
   verboseClaudeOutput: boolean = false,
   verbosePromptOutput: boolean = false,
 ): Promise<void> {
@@ -14,6 +15,7 @@ export async function runSecurityCheck(
 
   await runContextComposerWithClaude(
     'safety-check.md',
+    claudePath,
     true,
     false,
     verboseClaudeOutput,

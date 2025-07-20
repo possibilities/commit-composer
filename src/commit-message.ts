@@ -13,6 +13,7 @@ function sendDesktopNotification(title: string, message: string) {
 
 async function handleCommitWordInMessage(
   cleanedMessage: string,
+  claudePath: string,
   verboseClaudeOutput: boolean,
   verbosePromptOutput: boolean,
 ): Promise<string> {
@@ -42,7 +43,11 @@ async function handleCommitWordInMessage(
       return cleanedMessage
     case 'regenerate':
       console.error('\nRegenerating commit message...')
-      return generateCommitMessage(verboseClaudeOutput, verbosePromptOutput)
+      return generateCommitMessage(
+        claudePath,
+        verboseClaudeOutput,
+        verbosePromptOutput,
+      )
     default:
       await errorExit('Commit cancelled by user.')
       throw new Error('Unreachable')
@@ -50,6 +55,7 @@ async function handleCommitWordInMessage(
 }
 
 export async function generateCommitMessage(
+  claudePath: string,
   verboseClaudeOutput: boolean = false,
   verbosePromptOutput: boolean = false,
 ): Promise<string> {
@@ -57,6 +63,7 @@ export async function generateCommitMessage(
 
   const message = await runContextComposerWithClaude(
     'commit-message.md',
+    claudePath,
     true,
     true,
     verboseClaudeOutput,
@@ -75,6 +82,7 @@ export async function generateCommitMessage(
   if (cleanedMessage.toLowerCase().includes('commit')) {
     return handleCommitWordInMessage(
       cleanedMessage,
+      claudePath,
       verboseClaudeOutput,
       verbosePromptOutput,
     )

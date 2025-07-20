@@ -42,7 +42,7 @@ async function commitComposer(options: CommitComposerOptions) {
     cleanupFile(SECURITY_CHECK_SUCCESS_FILE)
 
     await checkRequiredExecutables()
-    await verifyClaudeExecutable()
+    const claudePath = await verifyClaudeExecutable()
     await ensureGitRepository()
 
     await formatAndLintCode()
@@ -76,12 +76,14 @@ async function commitComposer(options: CommitComposerOptions) {
       )
     } else {
       await runSecurityCheck(
+        claudePath,
         options.verboseClaudeOutput,
         options.verbosePromptOutput,
       )
     }
 
     const commitMessage = await generateCommitMessage(
+      claudePath,
       options.verboseClaudeOutput,
       options.verbosePromptOutput,
     )

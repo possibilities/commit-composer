@@ -1,8 +1,7 @@
-import { existsSync } from 'fs'
+import { existsSync, accessSync, constants } from 'fs'
 import { spawn, execSync } from 'child_process'
 import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
-import { CLAUDE_EXECUTABLE } from './config.js'
 import { errorExit, cleanupFile } from './utils.js'
 import { getUntrackedFiles } from './git.js'
 
@@ -47,6 +46,7 @@ interface ClaudeResponse {
 
 export async function runContextComposerWithClaude(
   promptFile: string,
+  claudePath: string,
   validateResult: boolean = false,
   captureFileContent: boolean = false,
   verboseClaudeOutput: boolean = false,
@@ -72,7 +72,7 @@ export async function runContextComposerWithClaude(
       stdio: ['pipe', 'pipe', 'pipe'],
     })
 
-    const claude = spawn(CLAUDE_EXECUTABLE, claudeArgs, {
+    const claude = spawn(claudePath, claudeArgs, {
       stdio: ['pipe', 'pipe', 'pipe'],
     })
 
@@ -208,16 +208,39 @@ async function resolvePromptPath(promptFile: string): Promise<string> {
   throw new Error('Unreachable')
 }
 
-export async function verifyClaudeExecutable(): Promise<void> {
+export async function verifyClaudeExecutable(): Promise<string> {
   try {
-    execSync('which claude', { stdio: 'ignore' })
-  } catch {
+    const pathResult = execSync('which claude', { encoding: 'utf-8' }).trim()
+    if (pathResult) {
+      return pathResult
+    }
+  } catch {}
+
+  try {
+    const commandResult = execSync('command -v claude', {
+      encoding: 'utf-8',
+    }).trim()
+    if (commandResult) {
+      return commandResult
+    }
+  } catch {}
+
+  const homeDir = process.env.HOME || process.env.USERPROFILE || ''
+  const officialPath = join(homeDir, '.claude', 'local', 'claude')
+
+  if (existsSync(officialPath)) {
     try {
-      execSync('command -v claude', { stdio: 'ignore' })
+      accessSync(officialPath, constants.F_OK | constants.X_OK)
+      return officialPath
     } catch {
       await errorExit(
-        'Claude CLI not found in PATH. Please ensure Claude CLI is installed and available in your PATH.',
+        `Claude CLI found at ${officialPath} but is not executable. Please ensure it has execute permissions.`,
       )
     }
   }
+
+  await errorExit(
+    'Claude CLI not found. Please ensure Claude CLI is installed either in your PATH or at ~/.claude/local/claude',
+  )
+  throw new Error('Unreachable')
 }
