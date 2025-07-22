@@ -3,6 +3,14 @@ import { exec } from 'child_process'
 import { runContextComposerWithClaude } from './claude.js'
 import { errorExit } from './utils.js'
 
+const problematicStringsForAutoRetry = ['The commit message is:']
+
+function containsProblematicString(message: string): boolean {
+  return problematicStringsForAutoRetry.some(problematicString =>
+    message.includes(problematicString),
+  )
+}
+
 function sendDesktopNotification(title: string, message: string) {
   exec(
     `notify-send "${title}" "${message}" --urgency=critical`,
@@ -77,6 +85,17 @@ export async function generateCommitMessage(
   let cleanedMessage = message
   if (message.startsWith('Initial commit: ')) {
     cleanedMessage = message.substring('Initial commit: '.length)
+  }
+
+  if (containsProblematicString(cleanedMessage)) {
+    console.error(
+      '\n⚠️  Generated message contains problematic string, regenerating...',
+    )
+    return generateCommitMessage(
+      claudePath,
+      verboseClaudeOutput,
+      verbosePromptOutput,
+    )
   }
 
   if (cleanedMessage.toLowerCase().includes('commit')) {
