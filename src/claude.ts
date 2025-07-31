@@ -66,6 +66,11 @@ export async function runContextComposerWithClaude(
   let lastLine = ''
   let messageContent = ''
   const outputLines: string[] = []
+  let claudeStderrOutput = ''
+  let contextComposerStderrOutput = ''
+
+  let contextComposerSpawnError: Error | null = null
+  let claudeSpawnError: Error | null = null
 
   const exitCode = await new Promise<number>((resolve, reject) => {
     const contextComposer = spawn('npx', contextComposerArgs, {
@@ -92,7 +97,9 @@ export async function runContextComposerWithClaude(
     })
 
     contextComposer.stderr.on('data', data => {
-      process.stderr.write(`context-composer: ${data}`)
+      const errorOutput = data.toString()
+      contextComposerStderrOutput += errorOutput
+      process.stderr.write(`context-composer: ${errorOutput}`)
     })
 
     claude.stdout.on('data', data => {
@@ -115,25 +122,64 @@ export async function runContextComposerWithClaude(
     })
 
     claude.stderr.on('data', data => {
-      process.stderr.write(data)
+      const errorOutput = data.toString()
+      claudeStderrOutput += errorOutput
+      process.stderr.write(errorOutput)
     })
 
     contextComposer.on('error', err => {
+      contextComposerSpawnError = err
       reject(err)
     })
 
     claude.on('error', err => {
+      claudeSpawnError = err
       reject(err)
     })
 
     claude.on('close', code => {
       resolve(code || 0)
     })
+  }).catch(error => {
+    if (contextComposerSpawnError) {
+      throw new Error(
+        `Failed to spawn context-composer: ${contextComposerSpawnError.message}`,
+      )
+    }
+    if (claudeSpawnError) {
+      throw new Error(`Failed to spawn Claude CLI: ${claudeSpawnError.message}`)
+    }
+    throw error
   })
 
   if (exitCode !== 0) {
     await cleanupNewFiles(beforeFiles)
-    await errorExit(`Claude command failed with exit code ${exitCode}`)
+    let errorMessage = `Claude command failed with exit code ${exitCode}`
+
+    errorMessage += `\n\nContext: Running ${promptFile} prompt`
+
+    if (claudeStderrOutput.trim()) {
+      errorMessage += `\n\nClaude error output:\n${claudeStderrOutput.trim()}`
+    }
+
+    if (contextComposerStderrOutput.trim()) {
+      errorMessage += `\n\nContext composer error output:\n${contextComposerStderrOutput.trim()}`
+    }
+
+    if (lastLine) {
+      try {
+        const parsed: ClaudeResponse = JSON.parse(lastLine)
+        if (
+          parsed.type === 'result' &&
+          parsed.subtype === 'error' &&
+          parsed.result
+        ) {
+          errorMessage += `\n\nClaude error message:\n${parsed.result}`
+        }
+      } catch {}
+    }
+
+    await errorExit(errorMessage)
   }
 
   if (captureFileContent) {
@@ -151,14 +197,39 @@ export async function runContextComposerWithClaude(
 
   if (validateResult) {
     try {
+      if (!lastLine) {
+        await cleanupNewFiles(beforeFiles)
+        await errorExit(
+          `No response received from Claude while running ${promptFile} prompt`,
+        )
+      }
+
       const parsed: ClaudeResponse = JSON.parse(lastLine)
       if (parsed.type !== 'result' || parsed.subtype !== 'success') {
         await cleanupNewFiles(beforeFiles)
-        await errorExit('Claude returned an error result')
+        let errorMessage = `Claude returned an error result while running ${promptFile} prompt`
+
+        if (
+          parsed.type === 'result' &&
+          parsed.subtype === 'error' &&
+          parsed.result
+        ) {
+          errorMessage += `\n\nError details: ${parsed.result}`
+        }
+
+        await errorExit(errorMessage)
       }
-    } catch {
+    } catch (parseError) {
       await cleanupNewFiles(beforeFiles)
-      await errorExit('Invalid response format from Claude')
+      let errorMessage = `Invalid response format from Claude while running ${promptFile} prompt`
+
+      if (lastLine) {
+        errorMessage += `\n\nLast line received: ${lastLine}`
+      }
+
+      errorMessage += `\n\nParse error: ${parseError instanceof Error ? parseError.message : String(parseError)}`
+
+      await errorExit(errorMessage)
     }
   }
 
